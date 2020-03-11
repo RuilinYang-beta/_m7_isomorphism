@@ -1,5 +1,17 @@
 from graph import *
 
+# All the helper functions are defined here.
+# "tier 0" means the function is called directly by a main somewhere,
+# for i other than 0, "tier i" is helper functions of "tier i-1"
+# documentation is most detailed for "tier 0" functions.
+
+# ================ wk4 ================
+
+
+
+# ================ end of wk4 ================
+
+
 # ================ wk3 ================
 
 
@@ -82,8 +94,12 @@ def typify_group(group):
 # tier 0 & tier 2
 def same_nb(nb1, nb2):
     """
-    compare whether the two dictionary are the same
-    return: True if they have the same value
+    Compare whether the two dictionary are the same.
+    Params: nb1 and nb2 are two dictionaries of neighborhood infomation,
+            both of the format {color_of_nb: num_of_nb_of_this_color,
+                                color_of_nb: num_of_nb_of_this_color,
+                                ...}
+    Return: True if nb1 and nb2 have the same value.
     """
     if len(nb1) != len(nb2):
         return False
@@ -96,32 +112,40 @@ def same_nb(nb1, nb2):
 
 
 # tier 1
-def update_nb(graph):
+def update_nb(new_info):
     """
     update v.nb field for all the vertice in the graph
     v.nb = {color_of_nb: number_of_nb_with_that_color, .....}
     """
-    for v in graph.vertices:
-        v.nb = {}
-        for neighbor in v.neighbours:
-            if neighbor.colornum not in v.nb:
-                v.nb[neighbor.colornum] = 1
-            else:
-                v.nb[neighbor.colornum] += 1
+    for color_key in new_info:
+        for v in new_info[color_key]:
+            v.nb = {}
+            for neighbor in v.neighbours:
+                if neighbor.colornum not in v.nb:
+                    v.nb[neighbor.colornum] = 1
+                else:
+                    v.nb[neighbor.colornum] += 1
 
 
 # tier 0
-def color_refinement(graphs):
+def color_refinement(info):
     """
-    graphs: a list of graph object
-    return: a dictionary of info, where info is a dictionary of format
-            {color1: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
-             color2: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
-             color3: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
-             ....}
-             that is coarsest stable coloring
+    Refine the coloring of the a list of graphs.
+    Params:
+    - info, where info is a dictionary of format:
+      {color1: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+       color2: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+       color3: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+       ....}
+      the coloring is **not stable** yet.
+    Return:
+    - info, where info is a dictionary of format:
+      {color1: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+       color2: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+       color3: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+       ....}
+       that is coarsest stable coloring for the disjoint union of all the graph in graphs.
     """
-    info = initialization(graphs)
 
     next_color = max(info.keys()) + 1
 
@@ -155,8 +179,7 @@ def color_refinement(graphs):
         # after 1 iteration over all color
         # if any color_key-[vertices] pair has been splitted, need to update v.nb for all v
         if change:
-            for graph in graphs:
-                update_nb(graph)
+            update_nb(new_info)
             # prepare for the next iteration
             info = new_info
             new_info = {}
@@ -167,13 +190,13 @@ def color_refinement(graphs):
 
 
 # tier 1
-def extract_color_mapping(info, i):
+def extract_color_number_mapping(info, i):
     """
     From info extract the color mapping of a certain graph i, where
-    # info is a dictionary of format {color1: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
-    #                                 color2: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
-    #                                 color3: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
-    #                                }
+    # info is a dictionary of format {color1: number_of_vertices_of_this_color_within_this_graph,
+    #                                 color2: number_of_vertices_of_this_color_within_this_graph,
+    #                                 color3: number_of_vertices_of_this_color_within_this_graph,
+                                      ....}
     # that has reached stable coloring
     """
     # now need to extract {color1: num_of_v_of_this_color,
@@ -190,15 +213,42 @@ def extract_color_mapping(info, i):
 
 
 # tier 0
-def extract_color_mappings(info, num_graphs):
+def extract_color_number_mappings(info, num_graphs):
+    """
+    From the info dictionary, extract for each graph,
+    the mapping between color of neighbor and number of neighbor of that color.
+    Params:
+    - info, a dictionary of format {color1: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+                                    color2: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+                                    color3: [list_of_vertices_of_this_color_regardless_of_which_graph_they_belong_to],
+                                    }
+            that is coarsest stable coloring for the disjoint union of all the graph in graphs.
+    - num_graphs: number of graphs in the disjoint union of graphs
+    Return:
+    - mappings, the nested dictionary of all the graphs of format
+      {graph_index0: {color1: number_of_vertices_of_this_color_within_this_graph,
+                      color2: number_of_vertices_of_this_color_within_this_graph, ...},
+       graph_index1: {color1: number_of_vertices_of_this_color_within_this_graph,
+                      color2: number_of_vertices_of_this_color_within_this_graph, ...},
+       ...}
+    """
     mappings = {}
     for i in range(num_graphs):
-        mappings[i] = extract_color_mapping(info, i)
+        mapping = extract_color_number_mapping(info, i)
+        if len(mapping) > 0:
+            mappings[i] = mapping
     return mappings
 
 
 # tier 0
 def is_bijection(dic):
+    """
+    Whether in the dictionary, every key maps to value 1.
+    Params:
+    - dic, the dictionary of interest.
+    Return:
+    - True if every key maps to value 1.
+    """
     for key in dic:
         if dic[key] != 1:
             return False
