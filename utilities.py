@@ -21,7 +21,7 @@ def init_single_graph(a: "Graph", idx: int):
     Adds 3 fields to a vertex:
     - v.colornum: the color of the vertex
     - v.graph_idx: the graph(int) this vertex belongs to
-    - v.nb: dictionary recording neighboring infomation of the vertex
+    - v.nb: dictionary recording neighboring information of the vertex, where the neighbor information is {color_of_neighbor: num_of_nb_of_that_color}
     """
     for v in a.vertices:
         v.colornum = v.degree
@@ -37,7 +37,7 @@ def init_single_graph(a: "Graph", idx: int):
                 v.nb[neighbor.degree] += 1
 
 
-# tier 1
+# tier 0
 def initialization(graphs: List["Graph"]):
     for i in range(len(graphs)):
         init_single_graph(graphs[i], i)
@@ -65,7 +65,9 @@ def typify_group(group):
     # recording the type-vertices relationship: {type: [list_of_vertices_of_this_type]}
     type_vertices = {}
 
+    # a dict of format {type_num: {color_of_neighbor: num_of_nb_of_that_color}
     type_definition[0] = group[0].nb
+    # a dict of format {type_num: [list_of_vertices_of_this_type_regardless_of_which_graph_they_belong_to]}
     type_vertices[0] = [group[0]]
 
     next_type = 1
@@ -160,12 +162,15 @@ def color_refinement(info):
             if len(group) == 1:
                 # no need to further investigate
                 new_info[color_key] = info[color_key]
+                # go investigate next group
+                continue
             else:
                 type_definition, type_vertices = typify_group(group)
 
             # if no need to further split
             if len(type_definition) == 1:
                 new_info[color_key] = info[color_key]
+                continue
             # if need to further split
             else:
                 change = True
@@ -189,31 +194,9 @@ def color_refinement(info):
     return info
 
 
-# tier 1
-def extract_color_number_mapping(info, i):
-    """
-    From info extract the color mapping of a certain graph i, where
-    # info is a dictionary of format {color1: number_of_vertices_of_this_color_within_this_graph,
-    #                                 color2: number_of_vertices_of_this_color_within_this_graph,
-    #                                 color3: number_of_vertices_of_this_color_within_this_graph,
-                                      ....}
-    # that has reached stable coloring
-    """
-    # now need to extract {color1: num_of_v_of_this_color,
-    #                      color2: num_of_v_of_this_color,
-    #                      ....}
-    # for a certain graph
-    mapping = {}
-    for color_key in info:
-        all_vertices = info[color_key]
-        num_of_nb = len(list(filter(lambda x: x.graph_idx == i, all_vertices)))
-        if num_of_nb != 0:
-            mapping[color_key] = num_of_nb
-    return mapping
-
 
 # tier 0
-def extract_color_number_mappings(info, num_graphs):
+def extract_color_number_mappings(info):
     """
     From the info dictionary, extract for each graph,
     the mapping between color of neighbor and number of neighbor of that color.
@@ -233,10 +216,16 @@ def extract_color_number_mappings(info, num_graphs):
        ...}
     """
     mappings = {}
-    for i in range(num_graphs):
-        mapping = extract_color_number_mapping(info, i)
-        if len(mapping) > 0:
-            mappings[i] = mapping
+    for color_key in info:
+        for v in info[color_key]:
+            if v.graph_idx not in mappings:
+                mappings[v.graph_idx] = {}
+                mappings[v.graph_idx][color_key] = 1
+            else:
+                if color_key not in mappings[v.graph_idx]:
+                    mappings[v.graph_idx][color_key] = 1
+                else:
+                    mappings[v.graph_idx][color_key] += 1
     return mappings
 
 
