@@ -8,6 +8,216 @@ from graph import *
 # ================ wk4 ================
 
 
+# tier 0
+def extract_vertices(lst_graphs, lst_idx) -> List["Vertex"]:
+    """
+    Given a list of graphs, and a list of indexes, extract all the vertices of the graphs of interest,
+    in the process add an attr v.graph_idx to each vertex.
+    Params:
+        - lst_graphs: a list of graph object
+        - lst_idx: a list of indices of all the graph of interest
+    Return:
+        - a list of vertices that comes from disjoint union of all the graphs of interest
+    """
+    target_vertices = []
+    for idx in lst_idx:
+        # init v.graph_idx
+        for v in lst_graphs[idx].vertices:
+            v.graph_idx = idx
+        target_vertices.extend(lst_graphs[idx].vertices)
+    return target_vertices
+
+
+# tier 0
+def count_isomorphism(D, I, other):
+    """
+    Require:
+        - len(D) == len(I)
+        - assuming v in D and u in I has a bijection relationship
+    Params:
+        - D: a subset of vertices of a graph G
+        - I: a subset of vertices of another graph H
+        - other: all the other vertices in the graphs of interest that do not have a bijection relationship yet
+    Return:
+        - number of isomorphisms between the (two) graphs of interest
+    """
+    # print("one call")
+    # print("len(D) is {}; len(I) is {}".format(len(D), len(I)))
+
+    # ===== [1] get info from D + I + other =====
+    info = get_info(D, I, other)
+
+    # ===== [2] coarsest stable info under the assumption that D_i and I_i bijection =====
+    st_info = color_refinement(info)
+
+    # ===== [3] quick check =====
+    bijection, unbalanced = check_balanced_bijection(st_info)
+
+    # print("bijection: {}; unbalanced: {}".format(bijection, unbalanced))
+
+    if unbalanced:
+        return 0
+    if bijection:
+        return 1
+
+    # ===== [4] recursion comes into play when info is balanced =====
+    for key in info:
+        if len(info[key]) >= 4:
+            break
+
+    if len(D) == 0:
+        fromG, fromH = stratify_vertices(info[key])
+    else:
+        fromG, fromH = stratify_vertices(info[key], D[0].graph_idx)
+
+    x = fromG[0]
+    num = 0
+    for y in fromH:
+        new_other = list(filter(lambda ele: ele is not x and ele is not y, other))
+        new_D = D + [x]
+        new_I = I + [y]
+        num += count_isomorphism(new_D, new_I, new_other)
+        # print("Num of isomorphism: {}".format(num))
+
+    return num
+
+
+# tier 1
+def get_info(D, I, other):
+    """
+    Adding v.colornum and v.nb attr to each vertex of D + I + other, and organize D + I + other into an info dict.
+    """
+    info = {}
+    next_color = 1
+
+    if len(D) > 0:
+        for i in range(len(D)):
+            # add v.colornum to each vertex
+            D[i].colornum = next_color
+            I[i].colornum = next_color
+            # record in info
+            info[next_color] = [D[i], I[i]]
+            next_color += 1
+
+    # all the other vertices are colored 0
+    for v in other:
+        v.colornum = 0
+    info[0] = other
+
+    # add v.nb to v in D + I + other
+    for v in D:
+        add_v_nb(v)
+    for v in I:
+        add_v_nb(v)
+    for v in other:
+        add_v_nb(v)
+    return info
+
+
+# tier 2
+def add_v_nb(v: "Vertex"):
+    """
+    Add v.nb attr for a given vertex.
+    """
+    v.nb = {}
+    for neighbor in v.neighbours:
+        if neighbor.colornum not in v.nb:
+            v.nb[neighbor.colornum] = 1
+        else:
+            v.nb[neighbor.colornum] += 1
+
+
+# tier 1
+def check_balanced_bijection(info):
+    """
+    An info can be one of the 3: bijection, unbalanced, balanced.
+    The return value is either:
+        - True, False (bijection)
+        - False, True (unbalanced)
+        - False, False (balanced, need further investigation)
+    Require:
+        - info only contain mappings {color1: [v1, v2, ...], ...} of TWO graphs, ie. len(unique(info[color_i].graph_idx)) == 2
+    Params:
+        - info, the stable color mapping computed by color_refinement()
+    Return: bool1, bool2
+        - bool1: True if info is bijection
+        - bool2: True if info is unbalanced
+    """
+    dict1, dict2 = get_dict(info)
+
+    if not same_dict_value(dict1, dict2):
+        return False, True
+
+    if is_bijection(dict1):
+        return True, False
+
+    return False, False
+
+
+# tier 2
+def get_dict(info):
+    """
+    Requires:
+        - info is a color mapping of TWO graphs
+    Return:
+        - dict1, dict2: a {color_num: num_of_vertex_of_this_color} for each graph, resp.
+    """
+    # re-organize info into 2 dict, each represents the color summary of one graph
+    dict1 = {}
+    dict2 = {}
+
+    benchmark_graph_idx = None
+    benchmark_graph_set = False
+    for key in info:
+        if not benchmark_graph_set:
+            benchmark_graph_idx = info[key][0].graph_idx
+            benchmark_graph_set = True
+        for v in info[key]:
+            if v.graph_idx == benchmark_graph_idx: # go to dict1
+                if key in dict1:
+                    dict1[key] += 1
+                else:
+                    dict1[key] = 1
+            else:  # go to dict2
+                if key in dict2:
+                    dict2[key] += 1
+                else:
+                    dict2[key] = 1
+    return dict1, dict2
+
+
+# tier 1
+def stratify_vertices(lst_vertices, g = None):
+    """
+    Params:
+        - lst_vertices: a list of vertices from 2 graphs
+        - g: the graph_idx of the first of the two graphs, v in set D comes from graph g
+        - h: the graph_idx of the second of the two graphs, u in set I comes from graph h
+    Return:
+        - fromG, fromH: two list of vertices from 2 graphs resp.
+    """
+    fromG = []
+    fromH = []
+
+    benchmark_graph_idx = None  # the index of graph g
+    benchmark_graph_set = False
+
+    if g is None:                         # the program need to figure out how to seperate vertices
+        pass
+    else:
+        benchmark_graph_idx = g
+        benchmark_graph_set = True
+
+    for v in lst_vertices:
+        if not benchmark_graph_set:
+            benchmark_graph_idx = v.graph_idx
+            benchmark_graph_set = True
+        if v.graph_idx == benchmark_graph_idx:
+            fromG.append(v)
+        else:
+            fromH.append(v)
+    return fromG, fromH
+
 
 # ================ end of wk4 ================
 
@@ -78,7 +288,7 @@ def typify_group(group):
         # if the vertex match one of the existing type
         # record the vertex in type_ver
         for type_key in type_definition:
-            if same_nb(type_definition[type_key], target_vertex.nb):
+            if same_dict_value(type_definition[type_key], target_vertex.nb):
                 type_vertices[type_key].append(target_vertex)
                 typified = True
             else:
@@ -94,7 +304,7 @@ def typify_group(group):
 
 
 # tier 0 & tier 2
-def same_nb(nb1, nb2):
+def same_dict_value(nb1, nb2):
     """
     Compare whether the two dictionary are the same.
     Params: nb1 and nb2 are two dictionaries of neighborhood infomation,
