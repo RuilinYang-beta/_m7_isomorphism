@@ -54,6 +54,7 @@ with open('coach_wk4/' + filename) as f:
     G = load_graph(f, read_list=True)
 
 # filename = 'colorref_smallexample_4_7.grl'
+# filename = 'colorref_smallexample_6_15.grl'
 # with open('coach_wk3/' + filename) as f:
 #     G = load_graph(f, read_list=True)
 
@@ -70,6 +71,8 @@ q = 3
 partial_info = extract_partial_info(info, p, q)
 # print(partial_info)
 
+for key in partial_info:
+    print("color_key: {}; num of vertex: {}".format(key, len(partial_info[key])))
 
 def count_isomorphism(info, p, q, num, is_refined=False):
     if not is_refined:
@@ -109,7 +112,9 @@ def count_isomorphism(info, p, q, num, is_refined=False):
     # return num
     return count
 
-print(count_isomorphism(partial_info, p, q, 0, True))
+
+
+print("num of iso is {}".format(count_isomorphism(partial_info, p, q, 0, True)))
 
 
 
