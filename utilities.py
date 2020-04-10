@@ -192,7 +192,6 @@ def stratify_vertices(lst_vertices, g = None):
     Params:
         - lst_vertices: a list of vertices from 2 graphs
         - g: the graph_idx of the first of the two graphs, v in set D comes from graph g
-        - h: the graph_idx of the second of the two graphs, u in set I comes from graph h
     Return:
         - fromG, fromH: two list of vertices from 2 graphs resp.
     """
@@ -249,6 +248,7 @@ def init_single_graph(a: "Graph", idx: int):
 
 # tier 0
 def initialization(graphs: List["Graph"]):
+    # init each graph by adding 3 attr to each vertex of each graph
     for i in range(len(graphs)):
         init_single_graph(graphs[i], i)
 

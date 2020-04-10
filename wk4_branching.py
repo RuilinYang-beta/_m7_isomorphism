@@ -7,7 +7,8 @@ start = datetime.now()
 # ========== wk4 examples ==========
 # filename = 'torus24.grl'
 # filename = 'trees36.grl'
-filename = 'products72.grl'
+# filename = 'products72.grl'
+filename = 'torus144.grl'
 # filename = 'cubes5.grl'
 # filename = 'cubes6.grl'
 
@@ -42,8 +43,8 @@ print("{} contains {} graphs, each {} vertices".format(filename, len(G[0]), len(
 
 
 # ========== test on specific pair of graph ==========
-p = 1
-q = 5
+p = 0
+q = 6
 v = extract_vertices(G[0], [p, q])
 
 print("{}: graph {} and graph {} has {} isomorphism ".format(filename, p, q, count_isomorphism([], [], v)))
