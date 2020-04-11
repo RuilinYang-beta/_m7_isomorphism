@@ -406,7 +406,7 @@ def color_refinement(info):
 
 
 # tier 0
-def extract_color_number_mappings(info):
+def from_info_to_mappings(info):
     """
     From the info dictionary, extract for each graph,
     the mapping between color of neighbor and number of neighbor of that color.
