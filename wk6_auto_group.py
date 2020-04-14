@@ -79,7 +79,14 @@ def get_generating_set(D, I, other, matrix, reference):
     if unbalanced:
         return 0, False
     if bijection:
-        return 1, True
+        if is_trivial(st_info):
+            # print("trivial found: {}".format(st_info))
+            return 1, False
+        else:
+            # print("non trivial found: {}".format(st_info))
+            # todo: transform every non-trivial mapping to permutation object
+            # todo: add this non-trivial permutation in some collection that can be returned
+            return 1, True
 
     # ===== [4] recursion comes into play when info is balanced =====
     for key in st_info:
@@ -93,17 +100,50 @@ def get_generating_set(D, I, other, matrix, reference):
 
     x = fromG[0]
     num = 0
+    reorder_fromH(x, fromH)
     for y in fromH:
-        new_other = list(filter(lambda ele: ele is not x and ele is not y, other))
         new_D = D + [x]
         new_I = I + [y]
+        new_other = list(filter(lambda ele: ele is not x and ele is not y, other))
 
-        num, auto_found = get_generating_set(new_D, new_I, new_other, matrix, reference)
-        if auto_found:
-            # upon finding the first automorphism, don't spawn more branches
+        num_found, non_trivial_auto_found = get_generating_set(new_D, new_I, new_other, matrix, reference)
+        num += num_found
+
+        if non_trivial_auto_found:
+            # upon finding the first non-trivial automorphism, don't spawn more branches
             break
 
-    return num
+    return num, False
+
+
+def reorder_fromH(x, fromH):
+    """
+    Reorder fromH in place such that if there is a v in fromH, v is swapped to the first position of fromH.
+    """
+    if fromH[0].label == x.label:
+        return
+
+    for i in range(len(fromH)):
+        if fromH[i].label == x.label:
+            fromH[0], fromH[i] = fromH[i], fromH[0]
+
+    return
+
+
+def is_trivial(info):
+    """
+    Require:
+        - info forms a bijection, ie. every color class has exactly 2 (simple) vertices,
+          and they have diff v.graph_idx
+    For a given info, return True if it's trivial automorphism.
+    """
+    for key in info:
+        if info[key][0].label != info[key][1].label:
+            return False
+
+    return True
+
+
 
 # ================== end of temp section ==================
 
@@ -149,12 +189,12 @@ print("{} contains {} graphs, each {} vertices".format(filename,
 start = datetime.now()
 
 # ============= main program ============
-idx = 7
+idx = 0
 one_graph = list_of_graphs[idx]
 
 all_v, matrix, reference = initialization_automorphism(one_graph)
 
-count = get_generating_set([], [], all_v, matrix, reference)
+count, _ = get_generating_set([], [], all_v, matrix, reference)
 
 print("graph {} of file {} has {} automorphisms".format(idx, filename, count))
 

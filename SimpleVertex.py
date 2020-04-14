@@ -11,12 +11,15 @@ class SimpleVertex():
     #     self.grahp_idx = graph_idx
     #     self.label = label
 
+    def __str__(self):
+        return str((self.graph_idx, self.label))
+
     def __repr__(self):
         return str((self.graph_idx, self.label))
 
-    def __str__(self):
-        return "graph: {}; label: {}; colornum: {}; nb: {}".format(self.grahp_idx,
-                                                                   self.label,
-                                                                   self.colornum,
-                                                                   self.nb)
+    # def __str__(self):
+    #     return "graph: {}; label: {}; colornum: {}; nb: {}".format(self.graph_idx,
+    #                                                                self.label,
+    #                                                                self.colornum,
+    #                                                                self.nb)
 
