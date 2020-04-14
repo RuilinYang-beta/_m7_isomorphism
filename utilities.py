@@ -5,6 +5,21 @@ from graph import *
 # for i other than 0, "tier i" is helper functions of "tier i-1"
 # documentation is most detailed for "tier 0" functions.
 
+# ================ wk6 ================
+
+
+
+
+
+
+# ================ end of wk6 ================
+
+
+# ================ wk5 ================
+# todo move wk 5 helper function here
+# ================ end of wk5 ================
+
+
 # ================ wk4 ================
 
 
@@ -29,7 +44,7 @@ def extract_vertices(lst_graphs, lst_idx) -> List["Vertex"]:
 
 
 # tier 0
-def count_isomorphism(D, I, other):
+def count_isomorphism(D, I, other, stop_at_first_iso = False):
     """
     Require:
         - len(D) == len(I)
@@ -38,6 +53,7 @@ def count_isomorphism(D, I, other):
         - D: a subset of vertices of a graph G
         - I: a subset of vertices of another graph H
         - other: all the other vertices in the graphs of interest that do not have a bijection relationship yet
+        - stop_at_first_iso: True if you are satisfied as long as there is 1 iso
     Return:
         - number of isomorphisms between the (two) graphs of interest
     """
@@ -61,14 +77,14 @@ def count_isomorphism(D, I, other):
         return 1
 
     # ===== [4] recursion comes into play when info is balanced =====
-    for key in info:
-        if len(info[key]) >= 4:
+    for key in st_info:
+        if len(st_info[key]) >= 4:
             break
 
     if len(D) == 0:
-        fromG, fromH = stratify_vertices(info[key])
+        fromG, fromH = stratify_vertices(st_info[key])
     else:
-        fromG, fromH = stratify_vertices(info[key], D[0].graph_idx)
+        fromG, fromH = stratify_vertices(st_info[key], D[0].graph_idx)
 
     x = fromG[0]
     num = 0
@@ -76,16 +92,20 @@ def count_isomorphism(D, I, other):
         new_other = list(filter(lambda ele: ele is not x and ele is not y, other))
         new_D = D + [x]
         new_I = I + [y]
-        num += count_isomorphism(new_D, new_I, new_other)
-        # print("Num of isomorphism: {}".format(num))
+        num += count_isomorphism(new_D, new_I, new_other, stop_at_first_iso)
+        # enable this line when want to stop as far as there is ONE isomorphism
+        if stop_at_first_iso:
+            if num == 1:
+                break
 
     return num
 
 
 # tier 1
-def get_info(D, I, other):
+def get_info(D, I, other, use_mtx = False, matrix = None, reference = None):
     """
-    Adding v.colornum and v.nb attr to each vertex of D + I + other, and organize D + I + other into an info dict.
+    Adding v.colornum and v.nb attr to each vertex of D + I + other,
+    and organize D + I + other into an info dict.
     """
     info = {}
     next_color = 1
@@ -106,25 +126,44 @@ def get_info(D, I, other):
 
     # add v.nb to v in D + I + other
     for v in D:
-        add_v_nb(v)
+        add_v_nb(v, use_mtx, matrix, reference)
     for v in I:
-        add_v_nb(v)
+        add_v_nb(v, use_mtx, matrix, reference)
     for v in other:
-        add_v_nb(v)
+        add_v_nb(v, use_mtx, matrix, reference)
     return info
 
 
 # tier 2
-def add_v_nb(v: "Vertex"):
+def add_v_nb(v, use_mtx, matrix, reference):
     """
     Add v.nb attr for a given vertex.
+    - v is an "Vertex" object when not using matrix
+    - v is an "SimpleVertex" object when using matrix
     """
+    if not use_mtx:
+        v.nb = {}
+        # adding v.nb using v.neighbours
+        for neighbor in v.neighbours:
+            if neighbor.colornum not in v.nb:
+                v.nb[neighbor.colornum] = 1
+            else:
+                v.nb[neighbor.colornum] += 1
+    else:
+        # adding v.nb using adj.matrix
+        add_v_nb_use_mtx(v, matrix, reference)
+
+
+# tier 3
+def add_v_nb_use_mtx(v, mtx, ref):
     v.nb = {}
-    for neighbor in v.neighbours:
-        if neighbor.colornum not in v.nb:
-            v.nb[neighbor.colornum] = 1
+    for key in mtx[(v.graph_idx, v.label)]:
+        nb = ref[key]
+        if nb.colornum not in v.nb:
+            v.nb[nb.colornum] = 1
         else:
-            v.nb[neighbor.colornum] += 1
+            v.nb[nb.colornum] += 1
+
 
 
 # tier 1
@@ -324,23 +363,28 @@ def same_dict_value(nb1, nb2):
 
 
 # tier 1
-def update_nb(new_info):
+def update_nb(new_info, use_mtx, matrix, reference):
     """
     update v.nb field for all the vertice in the graph
     v.nb = {color_of_nb: number_of_nb_with_that_color, .....}
     """
     for color_key in new_info:
         for v in new_info[color_key]:
-            v.nb = {}
-            for neighbor in v.neighbours:
-                if neighbor.colornum not in v.nb:
-                    v.nb[neighbor.colornum] = 1
-                else:
-                    v.nb[neighbor.colornum] += 1
+            if not use_mtx:
+                # adding v.nb using v.neighbours
+                v.nb = {}
+                for neighbor in v.neighbours:
+                    if neighbor.colornum not in v.nb:
+                        v.nb[neighbor.colornum] = 1
+                    else:
+                        v.nb[neighbor.colornum] += 1
+            else:
+                # adding v.nb using adj.matrix
+                add_v_nb_use_mtx(v, matrix, reference)
 
 
 # tier 0
-def color_refinement(info):
+def color_refinement(info, use_mtx=False, matrix=None, reference=None):
     """
     Refine the coloring of the a list of graphs.
     Params:
@@ -394,7 +438,7 @@ def color_refinement(info):
         # after 1 iteration over all color
         # if any color_key-[vertices] pair has been splitted, need to update v.nb for all v
         if change:
-            update_nb(new_info)
+            update_nb(new_info, use_mtx, matrix, reference)
             # prepare for the next iteration
             info = new_info
             new_info = {}
@@ -402,7 +446,6 @@ def color_refinement(info):
         else:
             break
     return info
-
 
 
 # tier 0
