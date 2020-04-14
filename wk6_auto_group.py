@@ -2,6 +2,7 @@ from graph_io import write_dot, load_graph
 from utilities import *
 from datetime import datetime
 from SimpleVertex import SimpleVertex
+from permv2 import *
 
 # ================== temp section ==================
 
@@ -50,7 +51,7 @@ def initialization_automorphism(g: "Graph"):
     return new_vs, mtx, ref
 
 
-def get_generating_set(D, I, other, matrix, reference):
+def get_generating_set(D, I, other, matrix, reference, X):
     """
     Require:
         - len(D) == len(I)
@@ -60,10 +61,12 @@ def get_generating_set(D, I, other, matrix, reference):
         - I: a subset of vertices of the same graph G
         - other: all the other vertices in the graphs of interest that do not have a bijection relationship yet
         - matrix: adjacency matrix of the format { (graph_idx, label):   { (graph_idx, label):  1 } }
-        -reference: a reference dict to refer back to the simplevertex obj,
+        - reference: a reference dict to refer back to the simplevertex obj,
               with format  { (graph_idx, label):  simple_vertex_obj }
+        - X: a list of permutation found so far that forms automorphism
     Return:
         - number of isomorphisms between the (two) graphs of interest
+        - X: a list of permutation that forms automorphism
     """
     # ===== [1] get info from D + I + other =====
     init_info = get_info(D, I, other, True, matrix, reference)
@@ -79,13 +82,12 @@ def get_generating_set(D, I, other, matrix, reference):
     if unbalanced:
         return 0, False
     if bijection:
-        if is_trivial(st_info):
-            # print("trivial found: {}".format(st_info))
-            return 1, False
+        trivial, perm_list = process_bijection_info(st_info)
+        if trivial:
+            return 1, False      # non_trivial_found is False
         else:
             # print("non trivial found: {}".format(st_info))
-            # todo: transform every non-trivial mapping to permutation object
-            # todo: add this non-trivial permutation in some collection that can be returned
+            X.append(permutation(len(perm_list), mapping=perm_list))   # add the perm_list to X
             return 1, True
 
     # ===== [4] recursion comes into play when info is balanced =====
@@ -106,7 +108,7 @@ def get_generating_set(D, I, other, matrix, reference):
         new_I = I + [y]
         new_other = list(filter(lambda ele: ele is not x and ele is not y, other))
 
-        num_found, non_trivial_auto_found = get_generating_set(new_D, new_I, new_other, matrix, reference)
+        num_found, non_trivial_auto_found = get_generating_set(new_D, new_I, new_other, matrix, reference, X)
         num += num_found
 
         if non_trivial_auto_found:
@@ -130,15 +132,42 @@ def reorder_fromH(x, fromH):
     return
 
 
-def is_trivial(info):
+def process_bijection_info(info):
     """
     Require:
         - info forms a bijection, ie. every color class has exactly 2 (simple) vertices,
           and they have diff v.graph_idx
-    For a given info, return True if it's trivial automorphism.
     """
-    for key in info:
-        if info[key][0].label != info[key][1].label:
+    # a mapping from graph 0 vertex to graph 1 vertex
+    mappings = {}
+    for color in info:
+        group = info[color]
+        if group[0].graph_idx == 0:
+            mappings[group[0].label] = group[1].label
+        elif group[0].graph_idx == 1:
+            mappings[group[1].label] = group[0].label
+        else:
+            print("You shouldn't reach here.")
+
+    perm_list = []
+    for key in sorted(mappings.keys()):
+        perm_list.append(mappings[key])
+
+    trivial = None
+    if is_trivial(perm_list):
+        trivial = True
+    else:
+        trivial = False
+
+    return trivial, perm_list
+
+
+
+
+
+def is_trivial(perm_list):
+    for i in range(len(perm_list)):
+        if i != perm_list[i]:
             return False
 
     return True
@@ -194,9 +223,14 @@ one_graph = list_of_graphs[idx]
 
 all_v, matrix, reference = initialization_automorphism(one_graph)
 
-count, _ = get_generating_set([], [], all_v, matrix, reference)
+X = []
+
+count, _ = get_generating_set([], [], all_v, matrix, reference, X)
 
 print("graph {} of file {} has {} automorphisms".format(idx, filename, count))
+print("len of X (generating set) is {}".format(len(X)))
+print("first element of X is {}".format(X[0]))
+
 
 # ============= end of main program ============
 
