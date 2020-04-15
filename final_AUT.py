@@ -269,14 +269,23 @@ filename = 'products72.grl'     # mentioned by the manual--AUT
 # filename = 'bigtrees3.grl'    # mentioned by the manual--GI
 # filename = 'cubes6.grl'    # mentioned by the manual--GI
 
+
+# =============== GI ===============
 # GI_classes = GI(path + filename)
+# ------------ formatting output of GI ------------
 # print("Sets of isomorphic graphs:")
 # for ele in GI_classes:
 #     print(ele)
 
+
+# =============== AUT ===============
 value = AUT(path + filename)
-print(value)
+# ------------ formatting output of AUT, when AUT reading .grl ------------
+line_new = '{:<30}  {:<30} '.format("Sets of isomorphic graphs:", "Number of automorphisms:")
+print(line_new)
+for ele in value:
+    print('{:<30}  {:<30} '.format(str(ele[0]), str(ele[1])))
 
 
-
+# =============== reading files from directory ===============
 # print(get_files('GI'))         # get a list of .gr/.grl files under GI directory
