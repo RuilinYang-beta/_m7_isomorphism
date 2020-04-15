@@ -3,6 +3,10 @@ from os import listdir
 from graph_io import write_dot, load_graph
 from datetime import datetime
 
+# don't do print within functions
+# but do print at the scope that calls the function!!!!
+
+
 # tier 0
 def get_files(path):
     """
@@ -13,7 +17,7 @@ def get_files(path):
 
 
 # tier 0
-def AUT(filename, do_m_test):
+def AUT(filename, do_m_test=False):
     """
     Input a filename, can be a .gr file or .grl file,
     compute its automorphism result and output as project manual demanded.
@@ -22,36 +26,43 @@ def AUT(filename, do_m_test):
     """
     if filename.endswith('.gr'):
         # file contains single graph
-        with open(filename) as f:
-            G = load_graph(f)
-        print("{} contains 1 graphs with {} vertices".format(filename, len(G.vertices)))
-
-        AUT_single(G, do_m_test)
+        return AUT_single_readfile(filename, do_m_test)
 
     elif filename.endswith('.grl'):
         # file contains a list of graphs
-        with open(filename) as f:
-            G = load_graph(f, read_list=True)
-        list_of_graphs = G[0]
-        print("{} contains {} graphs, each {} vertices".format(filename,
-                                                               len(list_of_graphs),
-                                                               len(list_of_graphs[0].vertices)))
-
-        AUT_many(list_of_graphs)
+        return AUT_many(filename, do_m_test)
 
 
 # tier 1
-def AUT_many():
-    print("not implemented yet")
-    # todo: first call GI(list_of_graph) to get equivalent classes
-    # todo:
-    return None
+def AUT_many(filename, do_m_test):
+    """
+    Return:
+        - a list of tuples, where for each tuple,
+          first ele is a list of iso class, second ele is num_auto
+    """
+    with open(filename) as f:
+        G = load_graph(f, read_list=True)
+    list_of_graphs = G[0]
+
+    class_to_autonum = []
+    GI_classes = GI(filename)
+    for ele in GI_classes:
+        graph_obj  = list_of_graphs[ele[0]]
+        num_auto = AUT_single_readobj(graph_obj, do_m_test)
+
+        class_to_autonum.append((ele, num_auto))
+
+    return class_to_autonum
 
 
-# tier 1
-def AUT_single(one_graph, do_m_test=False):
+# tier 2: helper of AUT_many
+def AUT_single_readobj(graph_obj, do_m_test):
+    """
+    Return:
+        - num_auto: int, number of auto for a single graph.
+    """
 
-    all_v, matrix, reference = initialization_automorphism(one_graph)
+    all_v, matrix, reference = initialization_automorphism(graph_obj)
 
     X = []
 
@@ -59,23 +70,41 @@ def AUT_single(one_graph, do_m_test=False):
 
     num_auto = order_computing(X)
 
-    print("This graph has {} ele in X, and {} automorphisms".format(len(X), num_auto))
+    return num_auto
+
+
+# tier 1
+def AUT_single_readfile(filename, do_m_test):
+    """
+    Return:
+        - num_auto: int, number of auto for a single graph.
+    """
+    with open(filename) as f:
+        G = load_graph(f)
+
+    all_v, matrix, reference = initialization_automorphism(G)
+
+    X = []
+
+    count, _ = get_generating_set([], [], all_v, matrix, reference, X, do_m_test)
+
+    num_auto = order_computing(X)
+
+    return num_auto
 
 
 # tier 0 and tier 1
 def GI(filename):
     """
     filename will always be a .grl file.
+    Return:
+        - a list of equivalent classes.
     """
     # file contains a list of graphs
     with open(filename) as f:
         G = load_graph(f, read_list=True)
 
     list_of_graphs = G[0]
-    print("{} contains {} graphs, each {} vertices".format(filename,
-                                                           len(list_of_graphs),
-                                                           len(list_of_graphs[0].vertices))
-                                                           )
 
     # color refinement
     init_info = initialization(list_of_graphs)
@@ -87,12 +116,12 @@ def GI(filename):
 
     bij_def, bij_g, bal_def, bal_g = typify_mappings(mappings)
 
+    GI_classes = []
 
-    print("These are bijections found in first applying color refinement")
     for key in bij_g:
-        print(bij_g[key])
+        GI_classes.append(bij_g[key])
 
-    # a dict recording { type0: [list_of_graph_idx_of_this_type], ...}
+    # a nested list of which each ele is an equivalent class
     bij_from_bal = []
 
     # if there are undecided groups
@@ -101,9 +130,11 @@ def GI(filename):
             group = bal_g[key]      # a list of graphs that potentially is isomorphic
             bij_from_bal.extend((typify_group(group, list_of_graphs)))
 
-        print("These are iso found from balanced mappings")
         for ele in bij_from_bal:
-            print(ele)
+            GI_classes.append(ele)
+
+    return GI_classes
+
 
 
 # tier 1
@@ -222,20 +253,30 @@ def typify_mappings(mappings):
     return bijection_type_def, bijection_type_g, balanced_type_def, balanced_type_g
 
 
+# ================== body of functions ==================
 
-
-# ================== body of functions
 path = 'coach_wk4/'
 
 # filename = 'torus24.grl'
 # filename = 'trees36.grl'
-# filename = 'products72.grl'
+filename = 'products72.grl'     # mentioned by the manual--AUT
+# filename = 'torus72.grl'     # mentioned by the manual--AUT
 # filename = 'torus144.grl'
 # filename = 'cubes5.grl'
 # filename = 'cubes7.grl'
 # filename = 'cubes9.grl'
 # filename = 'trees90.grl'
-filename = 'bigtrees3.grl'    # mentioned by the manual
-# filename = 'cubes6.grl'    # mentioned by the manual
+# filename = 'bigtrees3.grl'    # mentioned by the manual--GI
+# filename = 'cubes6.grl'    # mentioned by the manual--GI
 
-GI(path + filename)
+# GI_classes = GI(path + filename)
+# print("Sets of isomorphic graphs:")
+# for ele in GI_classes:
+#     print(ele)
+
+value = AUT(path + filename)
+print(value)
+
+
+
+# print(get_files('GI'))         # get a list of .gr/.grl files under GI directory
