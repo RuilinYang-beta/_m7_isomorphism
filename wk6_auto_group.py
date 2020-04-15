@@ -3,6 +3,7 @@ from utilities import *
 from datetime import datetime
 from SimpleVertex import SimpleVertex
 from permv2 import *
+from basicpermutationgroup import *
 
 # ================== temp section ==================
 
@@ -83,11 +84,12 @@ def get_generating_set(D, I, other, matrix, reference, X):
         return 0, False
     if bijection:
         trivial, perm_list = process_bijection_info(st_info)
+        X.append(permutation(len(perm_list), mapping=perm_list))  # add the perm_list to X, regardless trivial or not
         if trivial:
             return 1, False      # non_trivial_found is False
         else:
             # print("non trivial found: {}".format(st_info))
-            X.append(permutation(len(perm_list), mapping=perm_list))   # add the perm_list to X
+            # X.append(permutation(len(perm_list), mapping=perm_list))   # add the perm_list to X
             return 1, True
 
     # ===== [4] recursion comes into play when info is balanced =====
@@ -111,6 +113,7 @@ def get_generating_set(D, I, other, matrix, reference, X):
         num_found, non_trivial_auto_found = get_generating_set(new_D, new_I, new_other, matrix, reference, X)
         num += num_found
 
+        # pruning
         if non_trivial_auto_found:
             # upon finding the first non-trivial automorphism, don't spawn more branches
             break
@@ -137,6 +140,9 @@ def process_bijection_info(info):
     Require:
         - info forms a bijection, ie. every color class has exactly 2 (simple) vertices,
           and they have diff v.graph_idx
+    Return:
+        - trivial: a boolean, is True if the mapping given by info forms a tricial permutation
+        - perm_list: a list of int that can be used as input to construct a permutation object
     """
     # a mapping from graph 0 vertex to graph 1 vertex
     mappings = {}
@@ -162,15 +168,45 @@ def process_bijection_info(info):
     return trivial, perm_list
 
 
-
-
-
 def is_trivial(perm_list):
     for i in range(len(perm_list)):
         if i != perm_list[i]:
             return False
 
     return True
+
+
+def order_computing(X):
+    """
+    Params:
+        - X: a list of permutation object
+    """
+    print("============== One call ==============")
+    print("len of X: {}".format(len(X)))
+
+    # base case
+    if len(X) == 1 and X[0].istrivial():
+        return 1
+
+    if len(X) == 0:
+        return 1
+
+    # find the element with its |orbit| >= 2
+    for ele in X[0].P:
+        O = Orbit(X, ele)
+        if len(O) >= 2:
+            break
+
+    new_gen_set = Stabilizer(X, ele)
+    print("element: {}; orbit length: {}; new_gen_set length: {}; new_gen_set are: {}".format(ele, len(O), len(new_gen_set), new_gen_set))
+
+    return len(O) * order_computing(new_gen_set)
+
+
+
+
+
+
 
 
 
@@ -218,7 +254,7 @@ print("{} contains {} graphs, each {} vertices".format(filename,
 start = datetime.now()
 
 # ============= main program ============
-idx = 0
+idx = 7
 one_graph = list_of_graphs[idx]
 
 all_v, matrix, reference = initialization_automorphism(one_graph)
@@ -227,9 +263,18 @@ X = []
 
 count, _ = get_generating_set([], [], all_v, matrix, reference, X)
 
-print("graph {} of file {} has {} automorphisms".format(idx, filename, count))
+print("graph {} of file {} has {} automorphisms gathered by the pruned tree".format(idx, filename, count))
 print("len of X (generating set) is {}".format(len(X)))
-print("first element of X is {}".format(X[0]))
+
+first = X[0]
+second = X[1]
+length = len(second.P)
+print("second element of X is {}".format(second))
+
+# for i in range(length):
+#     print("element {} can be mapped to {} vertices".format(i ,len(Orbit(X, i))))
+
+print("Finally, |<X>| is {}".format(order_computing(X)))
 
 
 # ============= end of main program ============
