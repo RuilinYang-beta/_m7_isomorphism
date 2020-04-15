@@ -1,15 +1,252 @@
 from graph import *
+from SimpleVertex import SimpleVertex
+from permv2 import *
+from basicpermutationgroup import *
 
 # All the helper functions are defined here.
 # "tier 0" means the function is called directly by a main somewhere,
 # for i other than 0, "tier i" is helper functions of "tier i-1"
 # documentation is most detailed for "tier 0" functions.
 
+
+# ================ finalizing functions ================
+
+
+# ================ end of finalizing functions ================
+
 # ================ wk6 ================
 
+# tier 0
+def initialization_automorphism(g: "Graph"):
+    """
+    - For each vertex v in g, generate two SimpleVertex object v' and v'', with the same v.label,
+    but v'.graph_idx = 0, v'.graph_idx = 1. These two number together can uniquely identify a SimpleVertex obj.
+    - In the process make an adjacency matrix, because when Vertex --> SimpleVertex,
+    the neighborhood information is lost, so need an external structure to store neighborhood info.
+    - Also, make a dictionary of reference, that maps each (graph_idx, label) pair to a SimpleVertex object.
+    So that each SimpleVertex obj, through adj.matrix can find its neighbor,
+    and through reference can actually refer back to the SimpleVertex, to get the color of its neighbor.
+    Return:
+        - new_vs: list of SimpleVertex that contains "vertex" of G and G',
+                  which now **only** have two attr: v.graph_idx and v.label
+        - mtx: an adjacency matrix recording the neighbouring info in the original graph,
+               with the format { (graph_idx, label):   { (graph_idx, label):  1 } }
+        -ref: a reference dict to refer back to the simplevertex obj,
+              with format  { (graph_idx, label):  simple_vertex_obj }
+    """
+    # a dict of format { (graph_idx, label):   { (graph_idx, label):  1 }},
+    mtx = {}
+    # all the new SimpleVeretx
+    new_vs = []
+    # a dict of format { (graph_idx, label):  simple_vertex_obj},
+    # is used to traceback to the simplevertex v2 that is neighboring to v1
+    ref = {}
+    # init v.label and v.graph_idx
+    for v in g.vertices:
+        new_v0 = SimpleVertex(0, v.label)
+        new_vs.append(new_v0)
+        ref[(0, v.label)] = new_v0
+
+        new_v1 = SimpleVertex(1, v.label)
+        new_vs.append(new_v1)
+        ref[(1, v.label)] = new_v1
+
+        # --- record v in mtx ---
+        mtx[(0, v.label)] = {}
+        mtx[(1, v.label)] = {}
+        for nb in v.neighbours:
+            mtx[(0, v.label)][(0, nb.label)] = 1
+            mtx[(1, v.label)][(1, nb.label)] = 1
+
+    return new_vs, mtx, ref
 
 
+# tier 0
+def get_generating_set(D, I, other, matrix, reference, X, enable_m_test):
+    """
+    Require:
+        - len(D) == len(I)
+        - assuming v in D and u in I has a bijection relationship
+    Params:
+        - D: a subset of vertices of a graph G
+        - I: a subset of vertices of the same graph G
+        - other: all the other vertices in the graphs of interest that do not have a bijection relationship yet
+        - matrix: adjacency matrix of the format { (graph_idx, label):   { (graph_idx, label):  1 } }
+        - reference: a reference dict to refer back to the simplevertex obj,
+              with format  { (graph_idx, label):  simple_vertex_obj }
+        - X: a list of permutation found so far that forms automorphism
+    Return:
+        - number of isomorphisms between the (two) graphs of interest
+        - X: a list of permutation that forms automorphism
+    """
+    # ===== [1] get info from D + I + other =====
+    init_info = get_info(D, I, other, True, matrix, reference)
 
+    # ===== [2] coarsest stable info under the assumption that D_i and I_i bijection =====
+    st_info = color_refinement(init_info, True, matrix, reference)
+
+    # ===== [3] quick check =====
+    bijection, unbalanced = check_balanced_bijection(st_info)
+
+    # print("bijection: {}; unbalanced: {}".format(bijection, unbalanced))
+
+    if unbalanced:
+        return 0, False
+    if bijection:
+        trivial, perm_obj = process_bijection_info(st_info)
+        # X.append(permutation(len(perm_list), mapping=perm_list))  # add the perm_list to X, regardless trivial or not
+        if trivial:
+            return 1, False      # non_trivial_found is False
+        else:
+            # print("non trivial found: {}".format(st_info))
+            if enable_m_test:
+                if len(X) == 0:
+                    X.append(perm_obj)  # perm_obj is the first perm ever
+                else:
+                    if not membership_testing(X, perm_obj):
+                        X.append(perm_obj)  # add the perm_list to X
+            else:
+                X.append(perm_obj)
+            return 1, True
+
+    # ===== [4] recursion comes into play when info is balanced =====
+    for key in st_info:
+        if len(st_info[key]) >= 4:
+            break
+
+    if len(D) == 0:
+        fromG, fromH = stratify_vertices(st_info[key])
+    else:
+        fromG, fromH = stratify_vertices(st_info[key], D[0].graph_idx)
+
+    x = fromG[0]
+    num = 0
+    reorder_fromH(x, fromH)
+    for y in fromH:
+        new_D = D + [x]
+        new_I = I + [y]
+        new_other = list(filter(lambda ele: ele is not x and ele is not y, other))
+
+        num_found, non_trivial_auto_found = get_generating_set(new_D, new_I, new_other, matrix, reference, X, enable_m_test)
+        num += num_found
+
+        # pruning
+        if non_trivial_auto_found:
+            # upon finding the first non-trivial automorphism, don't spawn more branches
+            break
+
+    return num, False
+
+
+# tier 1
+def reorder_fromH(x, fromH):
+    """
+    Reorder fromH in place such that if there is a v in fromH, v is swapped to the first position of fromH.
+    """
+    if fromH[0].label == x.label:
+        return
+
+    for i in range(len(fromH)):
+        if fromH[i].label == x.label:
+            fromH[0], fromH[i] = fromH[i], fromH[0]
+
+    return
+
+
+# tier 1
+def process_bijection_info(info):
+    """
+    Require:
+        - info forms a bijection, ie. every color class has exactly 2 (simple) vertices,
+          and they have diff v.graph_idx
+    Return:
+        - trivial: a boolean, is True if the mapping given by info forms a tricial permutation
+        - perm_list: a permutation object
+    """
+    # a mapping from graph 0 vertex to graph 1 vertex
+    mappings = {}
+    for color in info:
+        group = info[color]
+        if group[0].graph_idx == 0:
+            mappings[group[0].label] = group[1].label
+        elif group[0].graph_idx == 1:
+            mappings[group[1].label] = group[0].label
+        else:
+            print("You shouldn't reach here.")
+
+    perm_list = []
+    for key in sorted(mappings.keys()):
+        perm_list.append(mappings[key])
+
+    trivial = None
+    if is_trivial(perm_list):
+        trivial = True
+    else:
+        trivial = False
+
+    return trivial, permutation(len(perm_list), mapping=perm_list)
+
+
+# tier 2
+def is_trivial(perm_list):
+    for i in range(len(perm_list)):
+        if i != perm_list[i]:
+            return False
+
+    return True
+
+
+# tier 0
+def order_computing(X):
+    """
+    Params:
+        - X: a list of permutation object
+    """
+    # base case, trivial generating set
+    if len(X) == 0:
+        return 1
+
+    # find the element with its |orbit| >= 2
+    for ele in X[0].P:
+        O = Orbit(X, ele)
+        if len(O) >= 2:
+            break
+
+    new_gen_set = Stabilizer(X, ele)
+
+    return len(O) * order_computing(new_gen_set)
+
+
+# tier 1
+def membership_testing(X, permu: "permutation"):
+    """
+    Param:
+        - X, a set of permutation object, is the generating set of a larger perm group
+        - permu, a permutation object, that is defined by a bijection currently found in the pruned tree
+    Return:
+        - True if permu is an element of <X>, the perm group generated by X
+    """
+    if permu.istrivial():
+        return True
+
+    # find the element with its |orbit| >= 2
+    for alpha in range(len(permu.P)):
+        O, U = Orbit(X, alpha, True)
+        if len(O) >= 2:
+            break
+
+
+    # if there is no element with its |orbit| >= 2, must be trivial mapping
+    if len(O) == 1:
+        return True
+
+
+    image = permu[alpha]
+    for i in range(len(O)):
+        if image == O[i]:
+            return membership_testing( Stabilizer(X, alpha),  -U[i] * permu)
+
+    return False
 
 
 # ================ end of wk6 ================
@@ -330,6 +567,7 @@ def typify_group(group):
             if same_dict_value(type_definition[type_key], target_vertex.nb):
                 type_vertices[type_key].append(target_vertex)
                 typified = True
+                break  #
             else:
                 pass
         # if the vertex does not match any existing type
