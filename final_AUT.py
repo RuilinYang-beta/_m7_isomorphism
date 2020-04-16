@@ -253,39 +253,78 @@ def typify_mappings(mappings):
     return bijection_type_def, bijection_type_g, balanced_type_def, balanced_type_g
 
 
+
+def GI_problem(filename):
+    """
+    Encapsulate GI function together with printing results
+    """
+    GI_classes = GI(filename)
+    print("========== file: {} ==========".format(filename))
+    # ------------ formatting output of GI ------------
+    print("Sets of isomorphic graphs:")
+    for ele in GI_classes:
+        print(ele)
+
+
+
+def AUT_problem(filename):
+    """
+    Encapsulate AUT function together with printing results
+    """
+    value = AUT(filename)
+    if isinstance(value, list):
+        # ------------ formatting output of AUT, when AUT reading .grl ------------
+        print("========== file: {} ==========".format(filename))
+        line_new = '{:<30}  {:<30} '.format("Sets of isomorphic graphs:", "Number of automorphisms:")
+        print(line_new)
+        for ele in value:
+            print('{:<30}  {:<30} '.format(str(ele[0]), str(ele[1])))
+
+    else:
+        print("The graph in {} has {} automorphisms.".format(filename, value))
+
 # ================== body of functions ==================
 
-path = 'coach_wk4/'
+path = 'coach_wk5/'
 
 # filename = 'torus24.grl'
 # filename = 'trees36.grl'
-filename = 'products72.grl'     # mentioned by the manual--AUT
-# filename = 'torus72.grl'     # mentioned by the manual--AUT
 # filename = 'torus144.grl'
 # filename = 'cubes5.grl'
 # filename = 'cubes7.grl'
 # filename = 'cubes9.grl'
 # filename = 'trees90.grl'
+
+
+filename = 'products72.grl'     # mentioned by the manual--AUT
+# filename = 'torus72.grl'     # mentioned by the manual--AUT
+
 # filename = 'bigtrees3.grl'    # mentioned by the manual--GI
 # filename = 'cubes6.grl'    # mentioned by the manual--GI
 
 
+# =============== reading files from directory ===============
+# files = get_files('GI')
+files = get_files('AUT')
+print(files)         # get a list of .gr/.grl files under GI directory
+
+
 # =============== GI ===============
-# GI_classes = GI(path + filename)
-# ------------ formatting output of GI ------------
-# print("Sets of isomorphic graphs:")
-# for ele in GI_classes:
-#     print(ele)
+# for f in files:
+#     start = datetime.now()
+#     GI_problem('GI/' + f)
+#     end = datetime.now()
+#     print("It took {} to compute".format(end - start))
+
 
 
 # =============== AUT ===============
-value = AUT(path + filename)
-# ------------ formatting output of AUT, when AUT reading .grl ------------
-line_new = '{:<30}  {:<30} '.format("Sets of isomorphic graphs:", "Number of automorphisms:")
-print(line_new)
-for ele in value:
-    print('{:<30}  {:<30} '.format(str(ele[0]), str(ele[1])))
+for f in files:
+    start = datetime.now()
+    AUT_problem('AUT/' + f)
+    end = datetime.now()
+    print("It took {} to compute".format(end - start))
 
 
-# =============== reading files from directory ===============
-# print(get_files('GI'))         # get a list of .gr/.grl files under GI directory
+
+
