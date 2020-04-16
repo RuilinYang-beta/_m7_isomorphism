@@ -2,6 +2,7 @@ from utilities import *
 from os import listdir
 from graph_io import write_dot, load_graph
 from datetime import datetime
+# from copy import deepcopy
 
 # don't do print within functions
 # but do print at the scope that calls the function!!!!
@@ -45,9 +46,9 @@ def AUT_many(filename, do_m_test):
     list_of_graphs = G[0]
 
     class_to_autonum = []
-    GI_classes = GI(filename)
+    GI_classes = GI_readlistgraph(list_of_graphs)
     for ele in GI_classes:
-        graph_obj  = list_of_graphs[ele[0]]
+        graph_obj = list_of_graphs[ele[0]]      # turn index into a graph object
         num_auto = AUT_single_readobj(graph_obj, do_m_test)
 
         class_to_autonum.append((ele, num_auto))
@@ -93,19 +94,7 @@ def AUT_single_readfile(filename, do_m_test):
     return num_auto
 
 
-# tier 0 and tier 1
-def GI(filename):
-    """
-    filename will always be a .grl file.
-    Return:
-        - a list of equivalent classes.
-    """
-    # file contains a list of graphs
-    with open(filename) as f:
-        G = load_graph(f, read_list=True)
-
-    list_of_graphs = G[0]
-
+def GI_readlistgraph(list_of_graphs):
     # color refinement
     init_info = initialization(list_of_graphs)
     info = color_refinement(init_info)
@@ -127,13 +116,34 @@ def GI(filename):
     # if there are undecided groups
     if len(bal_g) > 0:
         for key in bal_g:
-            group = bal_g[key]      # a list of graphs that potentially is isomorphic
+            group = bal_g[key]  # a list of graphs that potentially is isomorphic
             bij_from_bal.extend((typify_group(group, list_of_graphs)))
 
         for ele in bij_from_bal:
             GI_classes.append(ele)
 
     return GI_classes
+
+
+# tier 0 and tier 1
+def GI(filename):
+    """
+    filename will always be a .grl file.
+    Return:
+        - a list of equivalent classes.
+    """
+    # file contains a list of graphs
+    with open(filename) as f:
+        G = load_graph(f, read_list=True)
+
+    list_of_graphs = G[0]
+
+    # test one equi class with more than 2 graphs!!!!!
+    # dup = deepcopy(G[0][-1])
+    # list_of_graphs.append(dup)
+
+    return GI_readlistgraph(list_of_graphs)
+
 
 
 
@@ -281,6 +291,7 @@ def AUT_problem(filename):
             print('{:<30}  {:<30} '.format(str(ele[0]), str(ele[1])))
 
     else:
+        print("========== file: {} ==========".format(filename))
         print("The graph in {} has {} automorphisms.".format(filename, value))
 
 # ================== body of functions ==================
